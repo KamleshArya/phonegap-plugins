@@ -67,6 +67,11 @@ public class ChildBrowser extends Plugin {
             if (action.equals("showWebPage")) {
                 this.browserCallbackId = callbackId;
                 
+                // If the ChildBrowser is already open then throw an error
+                if (dialog != null && dialog.isShowing()) {
+                    return new PluginResult(PluginResult.Status.ERROR, "ChildBrowser is already open");
+                }
+                
                 result = this.showWebPage(args.getString(0), args.optJSONObject(1));
                 
                 if (result.length() > 0) {
@@ -132,7 +137,7 @@ public class ChildBrowser extends Plugin {
             this.ctx.startActivity(intent);
             return "";
         } catch (android.content.ActivityNotFoundException e) {
-            System.out.println("ChildBrowser: Error loading url "+url+":"+ e.toString());
+            Log.d(LOG_TAG, "ChildBrowser: Error loading url "+url+":"+ e.toString());
             return e.toString();
         }
     }
@@ -142,6 +147,7 @@ public class ChildBrowser extends Plugin {
      */
     private void closeDialog() {
         if (dialog != null) {
+            this.webview.stopLoading();
             dialog.dismiss();
         }
     }
@@ -294,12 +300,16 @@ public class ChildBrowser extends Plugin {
                                 
                 webview = new WebView(ctx);
                 webview.getSettings().setJavaScriptEnabled(true);
+                webview.getSettings().setBuiltInZoomControls(true);
                 WebViewClient client = new ChildBrowserClient(ctx, edittext);
                 webview.setWebViewClient(client);                
                 webview.loadUrl(url);
                 webview.setId(5);
+                webview.setInitialScale(0);
                 webview.setLayoutParams(wvParams);
                 webview.requestFocus();
+                webview.requestFocusFromTouch();
+                
                 
                 toolbar.addView(back);
                 toolbar.addView(forward);
@@ -371,7 +381,7 @@ public class ChildBrowser extends Plugin {
         public void onPageStarted(WebView view, String url,  Bitmap favicon) {
             super.onPageStarted(view, url, favicon);            
             String newloc;
-            if (url.startsWith("http")) {
+            if (url.startsWith("http:") || url.startsWith("https:")) {
                 newloc = url;
             } else {
                 newloc = "http://" + url;
